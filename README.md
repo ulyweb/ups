@@ -4,7 +4,7 @@
 ![UPS](https://img.shields.io/badge/UPS-APC_BE600M1-blue?style=for-the-badge&logo=apc)
 ![Runtime](https://img.shields.io/badge/Est._Runtime-42m-orange?style=for-the-badge&logo=time)
 
-> **Live Dashboard:** [https://yourusername.github.io/repo-name](https://yourusername.github.io/repo-name)
+> **Live Dashboard:** [https://ulyweb.github.io/ups](https://ulyweb.github.io/ups)
 
 This repository hosts the configuration and monitoring interface for the primary home lab power backup system. The system is managed via **pfSense (NUT)** with an APC Back-UPS BE600M1.
 
