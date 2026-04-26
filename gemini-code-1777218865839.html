@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonicWall TZ400 Interactive Architecture</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --panel-bg: #ffffff;
+            --text-main: #334155;
+            --border-light: #e2e8f0;
+            --primary: #0f172a;
+            --internet: #0ea5e9;
+            --modem: #64748b;
+            --firewall: #f59e0b;
+            --lan: #10b981;
+            --dmz: #8b5cf6;
+            --malicious: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-lan { background-color: var(--lan); }
+        .btn-dmz { background-color: var(--dmz); }
+        .btn-drop { background-color: var(--malicious); }
+
+        .visualization {
+            position: relative;
+            height: 500px;
+            background: #ffffff;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        /* SVG lines for connections */
+        #connections {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+        
+        line {
+            stroke: #cbd5e1;
+            stroke-width: 3;
+            stroke-dasharray: 5, 5;
+        }
+
+        /* Network Nodes */
+        .node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            padding: 1rem;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            z-index: 2;
+            width: 160px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-top: 4px solid;
+        }
+
+        .node i { display: block; font-size: 1.5rem; margin-bottom: 0.5rem; font-style: normal; }
+        .node span { display: block; font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
+
+        #node-internet { top: 10%; left: 50%; border-color: var(--internet); }
+        #node-modem { top: 35%; left: 50%; border-color: var(--modem); }
+        #node-firewall { top: 60%; left: 50%; border-color: var(--firewall); width: 200px; }
+        #node-lan { top: 85%; left: 25%; border-color: var(--lan); }
+        #node-dmz { top: 85%; left: 75%; border-color: var(--dmz); }
+
+        /* The Data Packet */
+        .packet {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--internet);
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            opacity: 0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Firewall Status Ring */
+        .scan-ring {
+            position: absolute;
+            top: 60%; left: 50%;
+            width: 220px; height: 100px;
+            border: 2px solid var(--firewall);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 1;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Log Panel */
+        .log-panel {
+            padding: 1.5rem;
+            background: #f8fafc;
+            height: 200px;
+            overflow-y: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry { margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e2e8f0; animation: fadeIn 0.3s; }
+        .log-time { color: #94a3b8; margin-right: 0.5rem; }
+        .log-info { color: #0ea5e9; }
+        .log-success { color: #10b981; }
+        .log-warning { color: #f59e0b; }
+        .log-danger { color: #ef4444; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="header">
+        <h1>Gateway Security Flow Simulator</h1>
+        <p style="font-size: 0.9rem; margin-top: 0.5rem; font-weight: normal; opacity: 0.8;">ARRIS SB8200 &amp; SonicWall TZ400 Architecture</p>
+    </div>
+
+    <div class="controls">
+        <button class="btn-lan" onclick="simulateTraffic('lan')" id="btn-lan">Send Safe LAN Traffic</button>
+        <button class="btn-dmz" onclick="simulateTraffic('dmz')" id="btn-dmz">Send DMZ Request</button>
+        <button class="btn-drop" onclick="simulateTraffic('malicious')" id="btn-drop">Send Malicious Packet</button>
+    </div>
+
+    <div class="visualization" id="vis-container">
+        <svg id="connections">
+            <line x1="50%" y1="10%" x2="50%" y2="35%" />
+            <line x1="50%" y1="35%" x2="50%" y2="60%" />
+            <line x1="50%" y1="60%" x2="25%" y2="85%" />
+            <line x1="50%" y1="60%" x2="75%" y2="85%" />
+        </svg>
+
+        <div class="node" id="node-internet">
+            🌐<br>Public Internet
+            <span>Xfinity 2Gbps Source</span>
+        </div>
+        <div class="node" id="node-modem">
+            🔌<br>ARRIS SB8200
+            <span>Modem (Bridge Mode)</span>
+        </div>
+        <div class="node" id="node-firewall">
+            🛡️<br>SonicWall TZ400
+            <span>DPI / IPS / Geo-IP Active</span>
+        </div>
+        <div class="node" id="node-lan">
+            💻<br>Trusted LAN (X0)
+            <span>Workstations / Phones</span>
+        </div>
+        <div class="node" id="node-dmz">
+            🖥️<br>DMZ Lab (X2)
+            <span>Proxmox / Nextcloud AIO</span>
+        </div>
+
+        <div class="scan-ring" id="scan-ring"></div>
+        <div class="packet" id="packet"></div>
+    </div>
+
+    <div class="log-panel" id="log-panel">
+        <div class="log-entry">
+            <span class="log-time">[System]</span> 
+            <span class="log-info">Simulation initialized. Hardware firewall ready.</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Utility to log messages
+    function addLog(message, type = 'info') {
+        const panel = document.getElementById('log-panel');
+        const time = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+        panel.prepend(entry);
+    }
+
+    // Main animation function
+    function simulateTraffic(type) {
+        // Disable buttons during animation
+        document.querySelectorAll('button').forEach(b => b.disabled = true);
+        
+        const packet = document.getElementById('packet');
+        const ring = document.getElementById('scan-ring');
+        
+        // Reset packet
+        anime.set(packet, {
+            left: '50%', top: '10%', opacity: 1, scale: 1, backgroundColor: '#0ea5e9'
+        });
+
+        // Initialize timeline
+        const tl = anime.timeline({
+            easing: 'easeInOutSine',
+            complete: () => {
+                document.querySelectorAll('button').forEach(b => b.disabled = false);
+            }
+        });
+
+        // Step 1: Internet to Modem
+        tl.add({
+            targets: packet,
+            top: '35%',
+            duration: 600,
+            begin: () => addLog('Incoming traffic detected from Internet.', 'info')
+        });
+
+        // Step 2: Modem to Firewall
+        tl.add({
+            targets: packet,
+            top: '60%',
+            duration: 600,
+            begin: () => addLog('ARRIS SB8200 passing raw traffic to SonicWall (X1 WAN).', 'info')
+        });
+
+        // Step 3: Firewall Inspection Pause
+        tl.add({
+            targets: packet,
+            scale: 1.5,
+            duration: 800,
+            begin: () => {
+                addLog('SonicWall TZ400 performing Deep Packet Inspection...', 'warning');
+                // Animate scanning ring
+                anime({
+                    targets: ring,
+                    scale: [0, 1.5],
+                    opacity: [0.8, 0],
+                    duration: 1000,
+                    easing: 'easeOutExpo'
+                });
+            }
+        });
+
+        // Step 4: Routing Decision based on Type
+        if (type === 'lan') {
+            tl.add({
+                targets: packet,
+                left: '25%', top: '85%', scale: 1, backgroundColor: '#10b981',
+                duration: 800,
+                begin: () => addLog('Traffic verified safe. Routing to Trusted LAN (Port X0).', 'success')
+            }).add({ targets: packet, opacity: 0, duration: 200 });
+        } 
+        else if (type === 'dmz') {
+            tl.add({
+                targets: packet,
+                left: '75%', top: '85%', scale: 1, backgroundColor: '#8b5cf6',
+                duration: 800,
+                begin: () => addLog('Valid web request. Routing to DMZ Nextcloud AIO (Port X2).', 'info')
+            }).add({ targets: packet, opacity: 0, duration: 200 });
+        } 
+        else if (type === 'malicious') {
+            tl.add({
+                targets: packet,
+                backgroundColor: '#ef4444',
+                scale: [1.5, 2],
+                opacity: 0,
+                duration: 500,
+                begin: () => {
+                    addLog('CRITICAL: Malicious payload or blocked Geo-IP detected!', 'danger');
+                    addLog('Intrusion Prevention (IPS) dropped the connection immediately.', 'danger');
+                }
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
