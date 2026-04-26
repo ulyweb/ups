@@ -1,0 +1,153 @@
+Here are the files for your deployment repository. They contain the requested analogy, wiring instructions, security configurations, and the Mermaid architecture graph. 
+
+### README.md
+
+```markdown
+# SonicWall TZ400 & ARRIS SB8200 Network Architecture
+
+## The Analogy: The Shipping Dock and the Customs Checkpoint
+Think of your **ARRIS SB8200** as a massive industrial shipping dock. It brings in raw cargo (internet traffic) at extremely high speeds but doesn't check what's inside the boxes. It simply drops the cargo off at the perimeter.
+
+Your **SonicWall TZ400** is the heavily fortified Customs and Border Protection facility. Instead of letting that raw traffic flow directly into your private warehouse, the TZ400 opens the boxes (Deep Packet Inspection), checks the manifests against known threat lists (Geo-IP and Botnet filtering), and tightly controls where the safe cargo is allowed to go.
+
+## Wiring Diagram
+
+To maximize security, you should utilize physical port isolation on the firewall rather than plugging everything into a single switch.
+
+1. **Coaxial Connection:** Wall outlet to ARRIS SB8200.
+2. **External WAN (The Checkpoint Entrance):** ARRIS SB8200 (Port 1) to SonicWall TZ400 (**Port X1** - Default WAN).
+3. **Internal LAN (The Safe Zone):** SonicWall TZ400 (**Port X0** - Default LAN) to your primary network switch. This is for your trusted devices, daily driver workstations, and personal WiFi.
+4. **DMZ / Home Lab (The Quarantine Zone):** SonicWall TZ400 (**Port X2**) to a secondary switch or directly to a dedicated NIC on your server. This physically isolates externally accessible services.
+
+## Architecture Graph
+
+```mermaid
+graph TD
+    Internet((Internet / Xfinity)) -->|Coax| Modem[ARRIS SB8200 Modem]
+    Modem -->|1GbE RJ45| TZ400_X1[SonicWall TZ400<br/>Port X1: WAN]
+    
+    TZ400_X1 --- TZ400_Core{SonicWall<br/>Security Engine<br/>IPS/GAV/Geo-IP}
+    
+    TZ400_Core -->|Port X0: LAN Zone| LAN_Switch[Core Switch]
+    LAN_Switch --> Trusted[Trusted Devices<br/>Workstations/Phones]
+    LAN_Switch --> WiFi[WiFi Access Points]
+    
+    TZ400_Core -->|Port X2: DMZ Zone| Lab_Switch[Home Lab Switch]
+    Lab_Switch --> Proxmox[Proxmox VE]
+    Proxmox --> NPM[Nginx Proxy Manager]
+    Proxmox --> NC[Nextcloud AIO VM]
+```
+
+## Security Configuration Guide
+
+To truly take advantage of the hardware firewall capabilities, configure the following:
+
+1. **Enable Security Services:** Ensure Gateway Anti-Virus (GAV) and Intrusion Prevention (IPS) are globally enabled and enforced on both your WAN-to-LAN and WAN-to-DMZ access rules.
+2. **Geo-IP and Botnet Filtering:** Block traffic originating from high-risk regions at the gateway level. This silently drops noise and brute-force attempts before they even reach your port forwarding rules.
+3. **Strict Zone Isolation:** - Assign `X0` to the **LAN** zone (High Trust).
+   - Assign `X2` to the **DMZ** zone (Low Trust).
+   - Place your externally facing reverse proxies (like Nginx Proxy Manager) and applications (like your Nextcloud AIO VM) in the DMZ.
+   - Create an access rule that strictly blocks the DMZ zone from initiating connections back into the LAN zone. If a public-facing service is ever compromised, the threat cannot move laterally into your private trusted network.
+```
+
+***
+
+### index.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonicWall TZ400 Architecture</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+            --primary-color: #0055a4;
+            --border-color: #e1e4e8;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            line-height: 1.6; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 2rem; 
+            color: var(--text-color); 
+            background-color: var(--bg-color);
+        }
+        h1, h2 { color: var(--primary-color); }
+        .mermaid { 
+            background: var(--card-bg); 
+            padding: 2rem; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color); 
+            margin: 2rem 0; 
+            text-align: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card { 
+            background: var(--card-bg); 
+            padding: 1.5rem 2rem; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            margin-bottom: 2rem; 
+            border: 1px solid var(--border-color);
+        }
+        code { 
+            background: #f0f0f0; 
+            padding: 0.2rem 0.4rem; 
+            border-radius: 4px; 
+            font-family: monospace;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true, theme: 'default'});</script>
+</head>
+<body>
+    <h1>Network Architecture: SonicWall TZ400 & ARRIS SB8200</h1>
+    
+    <div class="card">
+        <h2>The Analogy: Shipping Dock & Customs Checkpoint</h2>
+        <p>Think of your <strong>ARRIS SB8200</strong> as an industrial shipping dock. It brings in massive amounts of cargo (internet traffic up to 2Gbps) but performs zero inspections.</p>
+        <p>The <strong>SonicWall TZ400</strong> is your fortified Customs and Border Protection checkpoint. Instead of letting raw traffic flow directly into your private space, the TZ400 performs Deep Packet Inspection, checks origins against known threat lists, and strictly routes traffic into isolated, secure zones.</p>
+    </div>
+
+    <div class="card">
+        <h2>Wiring Architecture</h2>
+        <ul>
+            <li><strong>WAN Link:</strong> Coax from wall &rarr; ARRIS SB8200 &rarr; Ethernet to <code>X1</code> on TZ400.</li>
+            <li><strong>LAN Link:</strong> TZ400 <code>X0</code> &rarr; Core Switch (Trusted workstations, phones, WiFi).</li>
+            <li><strong>DMZ Link:</strong> TZ400 <code>X2</code> &rarr; Dedicated Home Lab Network (Proxmox, VMs).</li>
+        </ul>
+    </div>
+
+    <div class="mermaid">
+    graph TD
+        Internet((Internet / Xfinity)) -->|Coax| Modem[ARRIS SB8200 Modem]
+        Modem -->|1GbE RJ45| TZ400_X1[SonicWall TZ400<br/>Port X1: WAN]
+        
+        TZ400_X1 --- TZ400_Core{SonicWall<br/>Security Engine<br/>Geo-IP Filter}
+        
+        TZ400_Core -->|Port X0: LAN| LAN_Switch[Core Switch]
+        LAN_Switch --> Trusted[Trusted Workstations]
+        
+        TZ400_Core -->|Port X2: DMZ| Lab_Switch[Home Lab Switch]
+        Lab_Switch --> Proxmox[Proxmox VE]
+        Proxmox --> NPM[Nginx Proxy Manager]
+        Proxmox --> NC[Nextcloud AIO VM]
+    </div>
+
+    <div class="card">
+        <h2>Strategic Configuration</h2>
+        <ol>
+            <li><strong>Zone Segmentation:</strong> Keep personal devices on the highly trusted <code>LAN</code> zone (X0). Put externally facing assets, like a Nextcloud AIO VM, into the <code>DMZ</code> zone (X2).</li>
+            <li><strong>Zero-Trust DMZ Rules:</strong> Create firewall access rules that completely block the DMZ from initiating connections back into the LAN zone. This prevents lateral movement.</li>
+            <li><strong>Pre-emptive Drops:</strong> Enable Geo-IP filtering and Intrusion Prevention to drop traffic from high-risk regions before it hits your internal reverse proxies.</li>
+        </ol>
+    </div>
+</body>
+</html>
+```
